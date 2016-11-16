@@ -45,14 +45,12 @@ bce = tf.reduce_sum(tf.nn.sigmoid_cross_entropy_with_logits(x_hat, input_x), red
 loss = tf.reduce_mean(tf.add(kl_divergence, bce))
 
 # optimization
-optimizer = tflearn.Adam()
-step = tflearn.variable("step", initializer='zeros', shape=[])
-optimizer.build(step_tensor=step)
-optim_tensor = optimizer.get_tensor()
+optimizer = tflearn.optimizers.Adam()
+optimizer = optimizer.get_tensor()
 
 # trainer
 trainop = tflearn.TrainOp(loss=loss,
-                          optimizer=optim_tensor,
+                          optimizer=optimizer,
                           batch_size=batch_size,
                           metric=None,
                           name='vae_trainer')
@@ -66,15 +64,15 @@ trainer = tflearn.Trainer(train_ops=trainop,
 # evaluator
 evaluator = tflearn.Evaluator([x_hat], session=trainer.session)
 
-# launch the graph
-with tf.Graph().as_default():
-    trainer.fit(feed_dicts={input_x: trainX},
-                val_feed_dicts={input_x: testX},
-                n_epoch=n_epoch,
-                show_metric=False,
-                snapshot_epoch=True,
-                shuffle_all=True,
-                run_id='VAE')
 
-    print(testX[:10])
-    print(evaluator.predict({input_x: testX})[:10])
+# training
+trainer.fit(feed_dicts={input_x: trainX},
+            val_feed_dicts={input_x: testX},
+            n_epoch=n_epoch,
+            show_metric=False,
+            snapshot_epoch=True,
+            shuffle_all=True,
+            run_id='VAE')
+
+print(testX[:10])
+print(evaluator.predict({input_x: testX})[:10])
