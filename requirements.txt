@@ -1,0 +1,6 @@
+numpy==1.11.2
+Pillow==3.4.2
+protobuf==3.0.0b2
+six==1.10.0
+tensorflow==0.10.0
+tflearn==0.2.1
