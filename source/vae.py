@@ -26,7 +26,7 @@ TENSORBOARD_DIR='experiment/'
 CHECKPOINT_PATH='out_models/'
 
 # training parameters
-n_epoch = 3
+n_epoch = 100
 batch_size = 50
 
 
@@ -99,7 +99,7 @@ def main():
                 shuffle_all=True,
                 run_id='VAE')
 
-
+    return 0
 
 if __name__ == '__main__':
     sys.exit(main())
