@@ -4,11 +4,16 @@ import tflearn
 from dataset import Dataset, Datasets
 
 import pickle
+import sys
 
 
 # loading data
-height = pickle.load(open('height.pkl', 'rb'))
-trainX, trainY, testX, testY = height.load_data()
+try:
+    height = pickle.load(open('height.pkl', 'rb'))
+    trainX, trainY, testX, testY = height.load_data()
+except:
+    print("No dataset was found.")
+    sys.exit(1)
 
 # network parameters
 input_dim = 1 # height data input
@@ -21,58 +26,79 @@ TENSORBOARD_DIR='experiment/'
 CHECKPOINT_PATH='out_models/'
 
 # training parameters
-n_epoch = 10
+n_epoch = 3
 batch_size = 50
 
-# encoder
-input_x = tflearn.input_data(shape=(None, input_dim), name='input_x')
-encoder = tflearn.fully_connected(input_x, encoder_hidden_dim, activation='relu', regularizer='L2')
-mu_encoder = tflearn.fully_connected(encoder, latent_dim, activation='linear', regularizer='L2')
-logvar_encoder = tflearn.fully_connected(encoder, latent_dim, activation='linear', regularizer='L2')
 
-# sampling
-epsilon = tf.random_normal(tf.shape(logvar_encoder), dtype=tf.float32, name='epsilon')
-std_encoder = tf.exp(tf.mul(0.5, logvar_encoder))
-z = tf.add(mu_encoder, tf.mul(std_encoder, epsilon))
+# encoder
+def encode(input_x):
+    encoder = tflearn.fully_connected(input_x, encoder_hidden_dim, activation='relu')
+    mu_encoder = tflearn.fully_connected(encoder, latent_dim, activation='linear')
+    logvar_encoder = tflearn.fully_connected(encoder, latent_dim, activation='linear')
+    return mu_encoder, logvar_encoder
 
 # decoder
-decoder = tflearn.fully_connected(z, decoder_hidden_dim, activation='relu', regularizer='L2')
-x_hat = tflearn.fully_connected(decoder, input_dim, activation='linear', regularizer='L2')
+def decode(z):
+    decoder = tflearn.fully_connected(z, decoder_hidden_dim, activation='relu', restore=False)
+    x_hat = tflearn.fully_connected(decoder, input_dim, activation='linear', restore=False)
+    return x_hat
 
-# calculating loss
-kl_divergence = -0.5 * tf.reduce_sum(1 + logvar_encoder - tf.square(mu_encoder) - tf.exp(logvar_encoder), reduction_indices=1)
-bce = tf.reduce_sum(tf.nn.sigmoid_cross_entropy_with_logits(x_hat, input_x), reduction_indices=1)
-loss = tf.reduce_mean(tf.add(kl_divergence, bce))
+# sampler
+def sample(mu, logvar):
+    epsilon = tf.random_normal(tf.shape(logvar), dtype=tf.float32, name='epsilon')
+    std_encoder = tf.exp(tf.mul(0.5, logvar))
+    z = tf.add(mu, tf.mul(std_encoder, epsilon))
+    return z
 
-# optimization
-optimizer = tflearn.optimizers.Adam()
-optimizer = optimizer.get_tensor()
+# loss function(regularization)
+def calculate_regularization_loss(mu, logvar):
+    kl_divergence = -0.5 * tf.reduce_sum(1 + logvar - tf.square(mu) - tf.exp(logvar), reduction_indices=1)
+    return kl_divergence
+
+# loss function(reconstruction)
+def calculate_reconstruction_loss(x_hat, input_x):
+    bce = tf.reduce_sum(tf.nn.sigmoid_cross_entropy_with_logits(x_hat, input_x), reduction_indices=1)
+    return bce
 
 # trainer
-trainop = tflearn.TrainOp(loss=loss,
-                          optimizer=optimizer,
-                          batch_size=batch_size,
-                          metric=None,
-                          name='vae_trainer')
+def launch(input_x, target, optimizer):
+    trainop = tflearn.TrainOp(loss=target,
+                              optimizer=optimizer,
+                              batch_size=batch_size,
+                              metric=None,
+                              name='vae_trainer')
 
-trainer = tflearn.Trainer(train_ops=trainop,
-                          tensorboard_dir=TENSORBOARD_DIR,
-                          tensorboard_verbose=2,
-                          checkpoint_path=CHECKPOINT_PATH,
-                          max_checkpoints=1)
+    trainer = tflearn.Trainer(train_ops=trainop,
+                              tensorboard_dir=TENSORBOARD_DIR,
+                              tensorboard_verbose=0,
+                              checkpoint_path=CHECKPOINT_PATH,
+                              max_checkpoints=1)
 
-# evaluator
-evaluator = tflearn.Evaluator([x_hat], session=trainer.session)
+    trainer.fit(feed_dicts={input_x: trainX},
+                val_feed_dicts={input_x: testX},
+                n_epoch=n_epoch,
+                show_metric=False,
+                snapshot_epoch=True,
+                shuffle_all=True,
+                run_id='VAE')
 
 
-# training
-trainer.fit(feed_dicts={input_x: trainX},
-            val_feed_dicts={input_x: testX},
-            n_epoch=n_epoch,
-            show_metric=False,
-            snapshot_epoch=True,
-            shuffle_all=True,
-            run_id='VAE')
+# flow of VAE training
+def main():
+    input_x = tflearn.input_data(shape=(None, input_dim), name='input_x')
+    mu, logvar = encode(input_x)
+    z = sample(mu, logvar)
+    x_hat = decode(z)
 
-print(testX[:10])
-print(evaluator.predict({input_x: testX})[:10])
+    regularization_loss = calculate_regularization_loss(mu, logvar)
+    reconstruction_loss = calculate_reconstruction_loss(x_hat, input_x)
+    target = tf.reduce_mean(tf.add(regularization_loss, reconstruction_loss))
+
+    optimizer = tflearn.optimizers.Adam()
+    optimizer = optimizer.get_tensor()
+
+    launch(input_x, target, optimizer)
+
+
+if __name__ == '__main__':
+    sys.exit(main())
