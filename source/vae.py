@@ -61,7 +61,7 @@ def calculate_reconstruction_loss(x_hat, input_x):
     return bce
 
 # trainer
-def launch(input_x, target, optimizer):
+def define_trainer(target, optimizer):
     trainop = tflearn.TrainOp(loss=target,
                               optimizer=optimizer,
                               batch_size=batch_size,
@@ -73,14 +73,7 @@ def launch(input_x, target, optimizer):
                               tensorboard_verbose=0,
                               checkpoint_path=CHECKPOINT_PATH,
                               max_checkpoints=1)
-
-    trainer.fit(feed_dicts={input_x: trainX},
-                val_feed_dicts={input_x: testX},
-                n_epoch=n_epoch,
-                show_metric=False,
-                snapshot_epoch=True,
-                shuffle_all=True,
-                run_id='VAE')
+    return trainer
 
 
 # flow of VAE training
@@ -97,7 +90,15 @@ def main():
     optimizer = tflearn.optimizers.Adam()
     optimizer = optimizer.get_tensor()
 
-    launch(input_x, target, optimizer)
+    trainer = define_trainer(target, optimizer)
+
+    trainer.fit(feed_dicts={input_x: trainX}, val_feed_dicts={input_x: testX},
+                n_epoch=n_epoch,
+                show_metric=False,
+                snapshot_epoch=True,
+                shuffle_all=True,
+                run_id='VAE')
+
 
 
 if __name__ == '__main__':
