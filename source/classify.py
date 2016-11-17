@@ -3,7 +3,7 @@ import numpy as np
 import tensorflow as tf
 import tflearn
 
-from sklearn.svm import LinearSVC
+from sklearn.svm import SVC
 from sklearn.metrics import classification_report
 
 from dataset import Dataset, Datasets
@@ -86,10 +86,10 @@ def define_evaluator(trainer, mu, logvar):
     return evaluator
 
 # training classifier
-def get_classifier(evaluator, train_prediction, trainY):
+def get_classifier(train_prediction, trainY):
     train_prediction, trainY = reshaper(train_prediction, trainY)
 
-    estimator = LinearSVC(C=100.0)
+    estimator = SVC(C=1e6)
     estimator.fit(train_prediction, trainY)
     return estimator
 
@@ -143,7 +143,7 @@ def main():
     train_prediction = evaluator.predict({input_x: trainX})
     test_prediction = evaluator.predict({input_x: testX})
 
-    classifier = get_classifier(evaluator, train_prediction, trainY)
+    classifier = get_classifier(train_prediction, trainY)
     classify(classifier, test_prediction, testY)
 
     return 0
