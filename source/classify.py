@@ -14,24 +14,23 @@ import sys
 
 # loading data
 try:
-    height = pickle.load(open('height.pkl', 'rb'))
+    height = pickle.load(open('h_and_w.pkl', 'rb'))
     trainX, trainY, testX, testY = height.load_data()
 except:
     print("No dataset was found.")
     sys.exit(1)
 
 # network parameters
-input_dim = 1 # height data input
+input_dim = 2 # height data input
 encoder_hidden_dim = 16
 decoder_hidden_dim = 16
-latent_dim = 2
+latent_dim = 4
 
 # paths
 TENSORBOARD_DIR='experiment/'
 CHECKPOINT_PATH='out_models/'
 
 # training parameters
-n_epoch = 3
 batch_size = 50
 
 
@@ -62,8 +61,8 @@ def calculate_regularization_loss(mu, logvar):
 
 # loss function(reconstruction)
 def calculate_reconstruction_loss(x_hat, input_x):
-    bce = tf.reduce_sum(tf.nn.sigmoid_cross_entropy_with_logits(x_hat, input_x), reduction_indices=1)
-    return bce
+    mse = tflearn.objectives.mean_square(x_hat, input_x)
+    return mse
 
 # trainer
 def define_trainer(target, optimizer):
