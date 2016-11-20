@@ -20,6 +20,10 @@ class Dataset(object):
 
         features = features.astype(np.float32)
         features = np.multiply(features - 130.0, 1.0 / 70.0) # [130.0 - 200.0] -> [0 - 1]
+        for i in range(features.shape[1]):
+            feature = np.copy(features[:,i])
+            std_feature = (feature - feature.mean()) / feature.std()
+            features[:,i] = std_feature
         self._features = features
         self._labels = labels
         self._epochs_completed = 0
@@ -62,11 +66,8 @@ class Dataset(object):
 
 # sample from Gaussian distribution
 def sampling(n, mu, sigma):
-    height = np.reshape(normal(mu, sigma, n), (n, 1))
-    for i, h in enumerate(height):
-        height[i][0] = np.min([h[0], 200.0])
-        height[i][0] = np.max([h[0], 120.0])
-    return height
+    data = np.reshape(normal(mu, sigma, n), (n, 1))
+    return data
 
 
 # shuffle data and its label in association
@@ -90,10 +91,14 @@ if __name__ == '__main__':
     datasets = Datasets()
 
     n = 500 # number of data
-    x_male = sampling(n, 171.66, 5.60)
-    x_female = sampling(n, 158.32, 5.52)
-    y_male = np.zeros_like(x_male) # male:0
-    y_female = np.ones_like(x_male) # female:1
+    height_male = sampling(n, 171.66, 5.60)
+    height_female = sampling(n, 158.32, 5.52)
+    weight_male = sampling(n, 63.95, 8.41)
+    weight_female = sampling(n, 51.08, 6.10)
+    x_male = np.c_[height_male, weight_male]
+    x_female = np.c_[height_female, weight_female]
+    y_male = np.zeros_like(height_male) # male:0
+    y_female = np.ones_like(height_female) # female:1
 
     # concat
     data = np.r_[x_male, x_female]
@@ -116,4 +121,4 @@ if __name__ == '__main__':
     datasets.validation = Dataset(x_validation, y_validation)
 
     # save as a pickle file
-    save_as_pickle('height.pkl', datasets)
+    save_as_pickle('h_and_w.pkl', datasets)
