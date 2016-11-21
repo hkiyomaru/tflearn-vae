@@ -84,27 +84,30 @@ def define_evaluator(trainer, mu, logvar):
     evaluator = tflearn.Evaluator([mu, logvar], session=trainer.session)
     return evaluator
 
-# training classifier
-def get_classifier(train_prediction, trainY):
-    train_prediction, trainY = reshaper(train_prediction, trainY)
+# classifier
+class SupportVectorClassifier(object):
+    def __init__(self):
+        self.estimator = SVC(C=1e6)
 
-    estimator = SVC(C=1e6)
-    estimator.fit(train_prediction, trainY)
-    return estimator
+    def fit(self, train_mu_logvar, trainY):
+        train_mu_logvar = self.reshaper(train_mu_logvar)
+        print(train_mu_logvar.shape)
+        print(trainY.shape)
+        self.estimator.fit(train_mu_logvar, trainY)
 
-# classification
-def classify(classifier, test_prediction, testY):
-    test_prediction, testY = reshaper(test_prediction, testY)
+    def predict(self, test_mu_logvar):
+        test_mu_logvar = self.reshaper(test_mu_logvar)
+        predictions = self.estimator.predict(test_mu_logvar)
+        return predictions
 
-    predictions = classifier.predict(test_prediction)
+    def reshaper(self, mu_logvar):
+        mu_logvar = np.asarray(mu_logvar).astype(np.float32)
+        mu_logvar = np.concatenate((mu_logvar[:,0], mu_logvar[:,1]), axis=1)
+        return mu_logvar
+
+# evaluator
+def evaluate(predictions, testY):
     print(classification_report(predictions, testY))
-
-# reshaping
-def reshaper(prediction, y):
-    prediction = np.asarray(prediction).astype(np.float32)
-    prediction = np.concatenate((prediction[:,0], prediction[:,1]), axis=1)
-    y = np.reshape(np.asarray(y).astype(np.int32), (-1, ))
-    return prediction, y
 
 # loading checkpoint
 def get_checkpoint(out_models_dir):
@@ -137,13 +140,18 @@ def main():
     pretrained_model = get_checkpoint(CHECKPOINT_PATH)
     trainer.restore(pretrained_model)
 
+    # calculate mu and logvar for trainX and testX
     evaluator = define_evaluator(trainer, mu, logvar)
+    train_mu_logvar = evaluator.predict({input_x: trainX})
+    test_mu_logvar = evaluator.predict({input_x: testX})
 
-    train_prediction = evaluator.predict({input_x: trainX})
-    test_prediction = evaluator.predict({input_x: testX})
+    # classification
+    classifier = SupportVectorClassifier()
+    classifier.fit(train_mu_logvar, trainY)
+    predictions = classifier.predict(test_mu_logvar)
 
-    classifier = get_classifier(train_prediction, trainY)
-    classify(classifier, test_prediction, testY)
+    # evaluator
+    evaluate(predictions, testY)
 
     return 0
 
