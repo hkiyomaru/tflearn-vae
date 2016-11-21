@@ -17,13 +17,23 @@ class Dataset(object):
     def __init__(self, features, labels):
         assert features.shape[0] == labels.shape[0], ("features.shape: %s labels.shape: %s" % (features.shape, labels.shape))
         self._num_examples = features.shape[0]
+        self.normalization_info = np.zeros((features.shape[1], 4))
 
         features = features.astype(np.float32)
-        features = np.multiply(features - 130.0, 1.0 / 70.0) # [130.0 - 200.0] -> [0 - 1]
         for i in range(features.shape[1]):
             feature = np.copy(features[:,i])
-            std_feature = (feature - feature.mean()) / feature.std()
+            feature_index = i
+
+            max_value = feature.max()
+            min_value = feature.min()
+            mean_value = feature.mean()
+            std_value = feature.std()
+            show_normalization_information(feature_index, max_value, min_value, mean_value, std_value)
+            self.normalization_info[i] = np.asarray((max_value, min_value, mean_value, std_value))
+
+            std_feature = (feature - mean_value) / std_value
             features[:,i] = std_feature
+
         self._features = features
         self._labels = labels
         self._epochs_completed = 0
@@ -44,6 +54,10 @@ class Dataset(object):
     @property
     def epochs_completed(self):
         return self._epochs_completed
+
+    @property
+    def normalization_infomation(self):
+        return self.normalization_info
 
     def next_batch(self, batch_size):
         start = self._index_in_epoch
@@ -80,10 +94,19 @@ def corresponding_shuffle(data, target):
         _target[i] = target[j]
     return _data, _target
 
+
 # save dataset as a pickle file
 def save_as_pickle(filename, dataset):
     with open(filename, "wb") as f:
         pickle.dump(dataset, f)
+
+
+def show_normalization_information(feature_index, max_value, min_value, mean_value, std_value):
+    print(' Feature-index:', feature_index)
+    print('  -max:', max_value)
+    print('  -min:', min_value)
+    print('  -mean:', mean_value)
+    print('  -std:', std_value)
 
 
 # entry point
@@ -116,8 +139,11 @@ if __name__ == '__main__':
     y_validation = y_train[:N_validation]
 
     # create dataset
+    print("CREATING TRAIN DATASET...")
     datasets.train = Dataset(x_train, y_train)
+    print("CREATING TEST DATASET...")
     datasets.test = Dataset(x_test, y_test)
+    print("CREATING VALIDATION DATASET...")
     datasets.validation = Dataset(x_validation, y_validation)
 
     # save as a pickle file
