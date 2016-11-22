@@ -3,8 +3,9 @@
 ## Development Environment
 
 * OS: Ubuntu14.04
-
-* Language: Python3.4.5
+* Python: 3.4.5
+* TensorFlow: 0.10.0
+* TFLearn: 0.2.1
 
 ## Install dependent packages
 
